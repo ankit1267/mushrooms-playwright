@@ -31,6 +31,7 @@ if (fs.existsSync(envPath)) {
  */
 export default defineConfig({
   testDir: './tests',
+  timeout: 120000,
   /* Run tests in files in parallel */
   fullyParallel: true,
 
@@ -50,6 +51,7 @@ export default defineConfig({
 
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
     trace: 'on-first-retry',
+    permissions: ['clipboard-read', 'clipboard-write'],
   },
 
   /* Configure projects for major browsers */

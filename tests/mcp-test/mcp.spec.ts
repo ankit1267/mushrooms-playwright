@@ -1,56 +1,75 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../../fixtures/base.fixture';
 import { createMcpClient } from '../../utils/mcpClient';
-import { CREATE_ROW_TOOL, getMcpToolNames, MCP_URL } from './toolList';
+import { CREATE_ROW_TOOL, getMcpToolNames } from './toolList';
 
-test('MCP connects', async () => {
-  const client = await createMcpClient(MCP_URL);
-  expect(client).toBeDefined();
+async function resolveMcpUrl(clusterPage: { gotoClusterOneAndCopyMcpEndpointUrl: () => Promise<string> }): Promise<string> {
+  return clusterPage.gotoClusterOneAndCopyMcpEndpointUrl();
+}
+
+test('MCP connects', async ({ clusterPage }) => {
+  const mcpUrl = await resolveMcpUrl(clusterPage);
+  const handle = await createMcpClient(mcpUrl);
+  try {
+    console.log('client', handle.client);
+    expect(handle.client).toBeDefined();
+  } finally {
+    await handle.close();
+  }
 });
 
-test('MCP lists tools', async () => {
-  const client = await createMcpClient(MCP_URL);
-
-  const tools = await client.listTools();
-  console.log("tools", tools);
-
-  expect(tools.tools.length).toBeGreaterThan(0);
+test('MCP lists tools', async ({ clusterPage }) => {
+  const mcpUrl = await resolveMcpUrl(clusterPage);
+  const handle = await createMcpClient(mcpUrl);
+  try {
+    const tools = await handle.client.listTools();
+    console.log('tools', tools);
+    expect(tools.tools.length).toBeGreaterThan(0);
+  } finally {
+    await handle.close();
+  }
 });
 
-test('Specific tool exists', async () => {
-  const client = await createMcpClient(MCP_URL);
-
-  const names = await getMcpToolNames(client);
-  console.log("names", names);
-
-  expect(names).toContain(CREATE_ROW_TOOL);
-  
+test('Specific tool exists', async ({ clusterPage }) => {
+  const mcpUrl = await resolveMcpUrl(clusterPage);
+  const handle = await createMcpClient(mcpUrl);
+  try {
+    const names = await getMcpToolNames(handle.client);
+    console.log('names', names);
+    expect(names).toContain(CREATE_ROW_TOOL);
+  } finally {
+    await handle.close();
+  }
 });
 
-test('Tool executes', async () => {
-  const client = await createMcpClient(MCP_URL);
-
-  const result = await client.callTool({
-    name: CREATE_ROW_TOOL,
-    arguments: {}
-  });
-  console.log("result", result);
-  expect(result).toBeDefined();
-
-
-});
-
-test('Tool works multiple times (stability)', async () => {
-  const client = await createMcpClient(MCP_URL);
-
-  for (let i = 0; i < 3; i++) {
-    const result = await client.callTool({
-      name: CREATE_ROW_TOOL,
-      arguments: {}
+test('Tool executes', async ({ clusterPage }) => {
+  const mcpUrl = await resolveMcpUrl(clusterPage);
+  const handle = await createMcpClient(mcpUrl);
+  try {
+    const result = await handle.client.callTool({
+      name: 'Send_Message_on_Slack',
+      arguments: { Message_Content: 'hi' },
     });
-    console.log("result", result);
+    console.log('result', result);
     expect(result).toBeDefined();
+  } finally {
+    await handle.close();
+  }
+});
 
-
+test('Tool works multiple times (stability)', async ({ clusterPage }) => {
+  const mcpUrl = await resolveMcpUrl(clusterPage);
+  const handle = await createMcpClient(mcpUrl);
+  try {
+    for (let i = 0; i < 3; i++) {
+      const result = await handle.client.callTool({
+        name: 'Send_Message_on_Slack',
+        arguments: { Message_Content: 'hi' },
+      });
+      console.log('result', result);
+      expect(result).toBeDefined();
+    }
+  } finally {
+    await handle.close();
   }
 });
 

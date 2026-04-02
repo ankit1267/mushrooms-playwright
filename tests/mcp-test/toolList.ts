@@ -1,4 +1,3 @@
-export const MCP_URL = 'https://mcp.viasocket.com/mcp/69ccf5085156b64b99b018d0-103028';
 export const CREATE_ROW_TOOL = 'Add_New_Row_To_Sheet_on_Google_Sheets';
 
 interface ToolLike {

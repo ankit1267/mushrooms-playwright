@@ -1,27 +1,136 @@
 name: Playwright Tests
 on:
-  push:
-    branches: [ main, master ]
-  pull_request:
-    branches: [ main, master ]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment'
+        required: true
+        default: 'prod'
+        type: choice
+        options:
+          - prod
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
 jobs:
   test:
-    timeout-minutes: 60
     runs-on: ubuntu-latest
+
+    outputs:
+      failed_summary: ${{ steps.summary.outputs.FAILED_SUMMARY }}
+      test_outcome: ${{ steps.summary.outputs.test_outcome }}
+
+    env:
+      AUTH_API_URL: ${{ vars.AUTH_API_URL || secrets.AUTH_API_URL }}
+      APP_URL: ${{ vars.APP_URL || secrets.APP_URL }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+
     steps:
-    - uses: actions/checkout@v4
-    - uses: actions/setup-node@v4
-      with:
-        node-version: lts/*
-    - name: Install dependencies
-      run: npm ci
-    - name: Install Playwright Browsers
-      run: npx playwright install --with-deps
-    - name: Run Playwright tests
-      run: npx playwright test
-    - uses: actions/upload-artifact@v4
-      if: ${{ !cancelled() }}
-      with:
-        name: playwright-report
-        path: playwright-report/
-        retention-days: 30
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright Browsers
+        run: npx playwright install --with-deps
+
+      - name: Run Playwright tests
+        id: test-run
+        continue-on-error: true
+        run: npx playwright test --reporter=html,json
+
+      - name: Extract failed test summary
+        if: always()
+        id: summary
+        run: |
+          if [ -f test-results.json ]; then
+            FAILED_SUMMARY=$(node -e "
+              const fs = require('fs');
+              const data = JSON.parse(fs.readFileSync('test-results.json', 'utf8'));
+              const failed = [];
+              const seen = new Set();
+
+              function walk(suites) {
+                for (const suite of suites || []) {
+                  for (const spec of suite.specs || []) {
+                    if (seen.has(spec.title)) continue;
+                    for (const test of spec.tests || []) {
+                      if (test.status === 'unexpected') {
+                        const r = test.results.find(r => r.status === 'failed' || r.status === 'timedOut');
+                        if (r) {
+                          seen.add(spec.title);
+                          const errText = (r.error?.message || '') + '\\n' + (r.error?.stack || '') + '\\n' + (r.error?.snippet || '');
+                          const lines = errText.split('\\n');
+                          const msg = (r.error?.message || '').split('\\n')[0] || r.status;
+                          const srcLine = lines.find(l => l.trimStart().startsWith('>'));
+                          failed.push(spec.title + ' → ' + msg + (srcLine ? '\\n   ' + srcLine.trim() : ''));
+                        }
+                      }
+                    }
+                  }
+                  walk(suite.suites);
+                }
+              }
+
+              walk(data.suites);
+
+              if (failed.length === 0) console.log('All tests passed');
+              else console.log('Failed (' + failed.length + '):\\n' + failed.join('\\n'));
+            ")
+
+            echo "FAILED_SUMMARY<<EOF" >> $GITHUB_OUTPUT
+            echo "$FAILED_SUMMARY" >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+            echo "test_outcome=${{ steps.test-run.outcome }}" >> $GITHUB_OUTPUT
+          else
+            echo "FAILED_SUMMARY=No test-results.json found" >> $GITHUB_OUTPUT
+            echo "test_outcome=${{ steps.test-run.outcome }}" >> $GITHUB_OUTPUT
+          fi
+
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 30
+
+      - name: Upload Pages artifact
+        if: always()
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: playwright-report
+
+  deploy:
+    if: always()
+    needs: test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+      - name: Send Report URL and Summary to Webhook
+        if: always()
+        run: |
+          SUMMARY=$(cat <<'EOF'
+          ${{ needs.test.outputs.failed_summary }}
+          EOF
+          )
+
+          PAYLOAD=$(jq -n \
+            --arg report_url "${{ steps.deployment.outputs.page_url }}" \
+            --arg status "${{ needs.test.outputs.test_outcome }}" \
+            --arg failed_summary "$SUMMARY" \
+            '{report_url: $report_url, status: $status, failed_summary: $failed_summary}')
+
+          curl -X POST https://flow.sokt.io/func/scri8acRJpTe \
+            -H "Content-Type: application/json" \
+            -d "$PAYLOAD"
