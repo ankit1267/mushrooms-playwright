@@ -131,6 +131,6 @@ jobs:
             --arg failed_summary "$SUMMARY" \
             '{report_url: $report_url, status: $status, failed_summary: $failed_summary}')
 
-          curl -X POST https://flow.sokt.io/func/scri8acRJpTe \
+          curl -X POST https://flow.sokt.io/func/scrigpmyF5oX \
             -H "Content-Type: application/json" \
             -d "$PAYLOAD"
