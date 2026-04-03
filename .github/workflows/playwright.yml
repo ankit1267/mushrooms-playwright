@@ -44,7 +44,7 @@ jobs:
       - name: Run Playwright tests
         id: test-run
         continue-on-error: true
-        run: npx playwright test --reporter=html,json
+        run: PLAYWRIGHT_JSON_OUTPUT_NAME=test-results.json npx playwright test --reporter=html,json
 
       - name: Extract failed test summary
         if: always()
