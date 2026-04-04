@@ -81,7 +81,7 @@ jobs:
 
               walk(data.suites);
 
-              if (failed.length === 0) console.log('All tests passed');
+              if (failed.length === 0) console.log('All clear, everything is working fine!🔥');
               else console.log('Failed (' + failed.length + '):\\n' + failed.join('\\n'));
             ")
 
