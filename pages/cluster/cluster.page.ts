@@ -148,6 +148,10 @@ export class ClusterPage {
 
     await this.page.getByTestId(`sidebar-cluster-menu-${clusterId}`).click();
     await this.page.getByTestId(`sidebar-delete-cluster-${clusterId}`).click();
+    await this.page
+      .getByRole('dialog', { name: /delete cluster\?/i })
+      .getByRole('button', { name: 'Delete' })
+      .click();
 
     const response = await deleteResponsePromise;
     if (response.status() === 204) {
