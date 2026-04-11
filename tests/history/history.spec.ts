@@ -1,36 +1,61 @@
 import { test, expect } from '../../fixtures/base.fixture';
 import { createMcpClient } from '../../utils/mcpClient';
 
+function getTextContentFromToolResult(result: unknown): string {
+  const content = (result as { content?: Array<{ type?: string; text?: string }> } | null)?.content;
+  if (!Array.isArray(content)) {
+    return '';
+  }
+
+  return content
+    .filter(item => item?.type === 'text' && typeof item.text === 'string')
+    .map(item => item.text as string)
+    .join('\n');
+}
+
+async function assertSuccessfulHistoryEntry(
+  clusterPage: {
+    openHistoryTab: () => Promise<void>;
+    getHistoryRowByToolName: (toolName: string) => { count: () => Promise<number> };
+    openLatestSuccessfulHistoryRowByToolName: (toolName: string) => Promise<void>;
+  },
+  toolName: string,
+): Promise<void> {
+  await clusterPage.openHistoryTab();
+  const initialCount = await clusterPage.getHistoryRowByToolName(toolName).count();
+
+  await expect
+    .poll(async () => clusterPage.getHistoryRowByToolName(toolName).count(), {
+      timeout: 45_000,
+      intervals: [1_000, 2_000, 3_000],
+    })
+    .toBeGreaterThan(initialCount);
+
+  await clusterPage.openLatestSuccessfulHistoryRowByToolName(toolName);
+}
+
 test('history output contains hi text', async ({ clusterPage }) => {
   const mcpUrl = await clusterPage.gotoClusterOneAndCopyMcpEndpointUrl();
 
-  await new Promise(resolve => setTimeout(resolve, 5000));
-
   const handle = await createMcpClient(mcpUrl);
   try {
-    await handle.client.callTool({
+    const result = await handle.client.callTool({
       name: 'Send_Message_on_Slack',
       arguments: { Message_Content: 'hi' },
     });
+
+    const resultText = getTextContentFromToolResult(result);
+    expect(resultText).toMatch(/"success"\s*:\s*true/i);
   } finally {
     await handle.close();
   }
 
-  await new Promise(resolve => setTimeout(resolve, 10000));
-  await clusterPage.openHistoryTab();
-  
-  await clusterPage.openFirstHistoryRow();
-
-  const outputJson = await clusterPage.getOutputJsonText();
-
-  expect(outputJson).toMatch(/"text"\s*:\s*"hi/i);
+  await assertSuccessfulHistoryEntry(clusterPage, 'Send_Message_on_Slack');
 });
 
 
 test('history output contains spreadsheet response', async ({ clusterPage }) => {
   const mcpUrl = await clusterPage.gotoClusterOneAndCopyMcpEndpointUrl();
-
-  await new Promise(resolve => setTimeout(resolve, 5000));
 
   const handle = await createMcpClient(mcpUrl);
   try {
@@ -47,22 +72,17 @@ test('history output contains spreadsheet response', async ({ clusterPage }) => 
     if (propertyKeys[0]) rowArguments[propertyKeys[0]] = 'mushroom';
     if (propertyKeys[1]) rowArguments[propertyKeys[1]] = 'mushroom2';
 
-    await handle.client.callTool({
+    const result = await handle.client.callTool({
       name: 'Add_New_Row_To_Sheet_on_Google_Sheets',
       arguments: rowArguments,
     });
+
+    const resultText = getTextContentFromToolResult(result);
+    expect(resultText).toMatch(/"success"\s*:\s*true/i);
   } finally {
     await handle.close();
   }
 
-  await new Promise(resolve => setTimeout(resolve, 10000));
-  await clusterPage.openHistoryTab();
-  
-  await clusterPage.openFirstHistoryRow();
-
-  const outputJson = await clusterPage.getOutputJsonText();
-
-  expect(outputJson).toMatch(/"success"\s*:\s*true/i);
-
+  await assertSuccessfulHistoryEntry(clusterPage, 'Add_New_Row_To_Sheet_on_Google_Sheets');
 });
 

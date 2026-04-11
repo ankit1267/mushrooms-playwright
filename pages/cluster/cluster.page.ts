@@ -1,6 +1,8 @@
 import type { FrameLocator, Locator, Page } from '@playwright/test';
 
-const CLUSTER_URL = 'https://app.mushroom.viasocket.com/cluster/69ccf5085156b64b99b018d0';
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
 
 export interface CreateClusterResponse {
   success: boolean;
@@ -36,7 +38,13 @@ export class ClusterPage {
   }
 
   async openClusterFromMcpUrl(): Promise<void> {
-    await this.page.goto(CLUSTER_URL);
+    const appUrl = process.env.APP_URL;
+    if (!appUrl) {
+      throw new Error('APP_URL is not set');
+    }
+
+    await this.page.goto(appUrl);
+    await this.page.waitForURL(/\/cluster\/[a-f0-9]+/i, { timeout: 30_000 });
   }
 
   async clickClusterOne(): Promise<void> {
@@ -49,6 +57,16 @@ export class ClusterPage {
 
   async openFirstHistoryRow(): Promise<void> {
     await this.frame.locator('[role="rowgroup"] [role="row"]').first().click();
+  }
+
+  getHistoryRowByToolName(toolName: string): Locator {
+    return this.frame.getByRole('row', {
+      name: new RegExp(`${escapeRegExp(toolName)}.*success`, 'i'),
+    });
+  }
+
+  async openLatestSuccessfulHistoryRowByToolName(toolName: string): Promise<void> {
+    await this.getHistoryRowByToolName(toolName).first().click();
   }
 
   async getOutputJsonText(): Promise<string> {
