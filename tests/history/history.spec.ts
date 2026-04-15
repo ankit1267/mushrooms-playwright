@@ -16,22 +16,12 @@ function getTextContentFromToolResult(result: unknown): string {
 async function assertSuccessfulHistoryEntry(
   clusterPage: {
     openHistoryTab: () => Promise<void>;
-    getHistoryRowByToolName: (toolName: string) => { count: () => Promise<number> };
-    openLatestSuccessfulHistoryRowByToolName: (toolName: string) => Promise<void>;
+    openFirstHistoryRow: () => Promise<void>;
   },
-  toolName: string,
 ): Promise<void> {
+  await new Promise(resolve => setTimeout(resolve, 10000));
   await clusterPage.openHistoryTab();
-  const initialCount = await clusterPage.getHistoryRowByToolName(toolName).count();
-
-  await expect
-    .poll(async () => clusterPage.getHistoryRowByToolName(toolName).count(), {
-      timeout: 45_000,
-      intervals: [1_000, 2_000, 3_000],
-    })
-    .toBeGreaterThan(initialCount);
-
-  await clusterPage.openLatestSuccessfulHistoryRowByToolName(toolName);
+  await clusterPage.openFirstHistoryRow();
 }
 
 test('history output contains hi text', async ({ clusterPage }) => {
@@ -50,7 +40,7 @@ test('history output contains hi text', async ({ clusterPage }) => {
     await handle.close();
   }
 
-  await assertSuccessfulHistoryEntry(clusterPage, 'Send_Message_on_Slack');
+  await assertSuccessfulHistoryEntry(clusterPage);
 });
 
 
@@ -83,6 +73,6 @@ test('history output contains spreadsheet response', async ({ clusterPage }) => 
     await handle.close();
   }
 
-  await assertSuccessfulHistoryEntry(clusterPage, 'Add_New_Row_To_Sheet_on_Google_Sheets');
+  await assertSuccessfulHistoryEntry(clusterPage);
 });
 

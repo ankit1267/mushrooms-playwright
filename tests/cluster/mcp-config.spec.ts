@@ -7,8 +7,10 @@ test('mcp server configuration is visible for ChatGPT cluster', async ({ cluster
   expect(endpointUrl).toBe(mcpUrl);
 
   const jsonConfigText = await clusterPage.getMcpConfigJsonText();
+
+  console.log(jsonConfigText);
   expect(jsonConfigText).toContain('"mcpServers"');
-  expect(jsonConfigText).toContain('"mushroom"');
+  expect(jsonConfigText).toContain('"mushrooms"');
   expect(jsonConfigText).toContain(`"url": "${mcpUrl}"`);
   expect(jsonConfigText).toContain('"transport": "sse"');
 
@@ -17,7 +19,7 @@ test('mcp server configuration is visible for ChatGPT cluster', async ({ cluster
 
   const copiedJsonConfig = await clusterPage.copyMcpConfigJson();
   expect(copiedJsonConfig).toContain('"mcpServers"');
-  expect(copiedJsonConfig).toContain('"mushroom"');
+  expect(copiedJsonConfig).toContain('"mushrooms"');
   expect(copiedJsonConfig).toContain(`"url": "${mcpUrl}"`);
   expect(copiedJsonConfig).toContain('"transport": "sse"');
 });
