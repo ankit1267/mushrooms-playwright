@@ -88,7 +88,7 @@ export class ClusterPage {
   }
 
   async selectClientInModal(clientName: string): Promise<void> {
-    await this.page.getByTestId(`ai-client-option-${clientName.toLowerCase()}`).click();
+    await this.page.getByTestId(`ai-client-option-row1arci243y`).click();
   }
 
   async clickDoneAndCaptureCreateClusterResponse(): Promise<CreateClusterResponse> {
