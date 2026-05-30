@@ -73,7 +73,10 @@ jobs:
       - name: Run Playwright tests
         id: test-run
         continue-on-error: true
-        run: PLAYWRIGHT_JSON_OUTPUT_NAME=test-results.json npx playwright test --reporter=html,json
+        run: |
+          npx playwright test
+        
+        # run: PLAYWRIGHT_JSON_OUTPUT_NAME=test-results.json npx playwright test --reporter=html,json
 
       - name: Extract failed test summary
         if: always()
@@ -140,6 +143,10 @@ jobs:
     if: always()
     needs: test
     runs-on: ubuntu-latest
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
 
     steps:
       - name: Deploy to GitHub Pages
