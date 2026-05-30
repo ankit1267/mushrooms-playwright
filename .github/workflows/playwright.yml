@@ -64,6 +64,12 @@ jobs:
         env:
           PLAYWRIGHT_DOWNLOAD_CONNECTION_TIMEOUT: 300000
 
+      - name: Debug Playwright Version
+        run: |
+          node -v
+          npm -v
+          npx playwright --version
+
       - name: Run Playwright tests
         id: test-run
         continue-on-error: true
