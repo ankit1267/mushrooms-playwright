@@ -38,8 +38,31 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # - name: Install Playwright Browsers
+      #   run: npx playwright install --with-deps
+
+       # STEP 1 — Free disk space before browser download
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /opt/ghc
+          sudo rm -rf /usr/local/share/boost
+          sudo rm -rf /imagemagick-7.1.0
+          sudo apt-get autoremove -y
+          sudo apt-get clean
+          df -h
+      # STEP 2 — Clear corrupted Playwright cache
+      - name: Clear Playwright Cache
+        run: rm -rf ~/.cache/ms-playwright
+
+      # STEP 3 — Install Playwright browsers
       - name: Install Playwright Browsers
-        run: npx playwright install --with-deps
+        run: |
+          npx playwright install
+          npx playwright install-deps
+        timeout-minutes: 30
+        env:
+          PLAYWRIGHT_DOWNLOAD_CONNECTION_TIMEOUT: 300000
 
       - name: Run Playwright tests
         id: test-run
